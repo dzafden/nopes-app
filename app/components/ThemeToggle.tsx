@@ -1,32 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 import { Switch } from "@/components/ui/switch"
-import { storage } from "@/lib/storage"
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
-
-  useEffect(() => {
-    // Load initial theme
-    setTheme(storage.getTheme())
-
-    // Listen for changes from other tabs
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'nopes_theme') {
-        setTheme(storage.getTheme())
-      }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    storage.saveTheme(newTheme)
-  }
+  const { theme, setTheme } = useTheme()
 
   return (
     <div className="flex items-center justify-between px-4 py-2 transition-colors">
@@ -37,7 +16,7 @@ export function ThemeToggle() {
       </div>
       <Switch
         checked={theme === 'dark'}
-        onCheckedChange={toggleTheme}
+        onCheckedChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         className="data-[state=checked]:bg-primary"
       />
     </div>

@@ -2,7 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, IBM_Plex_Sans } from "next/font/google"
 import "./globals.css"
-import { storage } from "@/lib/storage"
+import { Providers } from "./providers"
 
 const inter = Inter({ subsets: ["latin"] })
 const ibmPlexSans = IBM_Plex_Sans({
@@ -21,15 +21,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Get initial theme from storage
-  const theme = storage.getTheme()
-
   return (
-    <html lang="en" className={`${theme} ${ibmPlexSans.variable}`} style={{ colorScheme: theme }}>
+    <html lang="en" className={ibmPlexSans.variable} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="antialiased transition-colors duration-150">{children}</body>
+      <body className="antialiased transition-colors duration-150">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }
