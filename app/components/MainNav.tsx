@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { Archive, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "./ThemeToggle"
 
@@ -22,9 +22,11 @@ export function MainNav() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[240px] flex flex-col">
+        <SheetTitle className="px-3 py-2">
+          Navigation
+        </SheetTitle>
         <div className="flex-1 space-y-4 py-4">
           <div className="px-3 py-2">
-            <h2 className="mb-2 px-4 text-lg font-semibold">Navigation</h2>
             <div className="space-y-1">
               <Link href="/archive" onClick={() => setIsOpen(false)}>
                 <Button variant="ghost" className={cn("w-full justify-start", pathname === "/archive" && "bg-muted")}>

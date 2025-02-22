@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Plus,
   Trash2,
@@ -31,6 +31,18 @@ import { ConfirmDialog } from "./components/ConfirmDialog"
 import { shareTask } from "@/lib/share"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import { DroppableSection } from "./components/DroppableSection"
+import { arrayMove } from "@dnd-kit/sortable"
 
 type Task = {
   id: number
@@ -98,6 +110,21 @@ export default function Home() {
   const [editValue, setEditValue] = useState("")
   const [calendarTask, setCalendarTask] = useState<Task | null>(null)
   const { toast } = useToast()
+  const [activeId, setActiveId] = useState<number | null>(null)
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  )
 
   // Load initial tasks
   useEffect(() => {
@@ -256,121 +283,92 @@ export default function Home() {
     }
   }
 
-  const renderTaskList = (tasks: Task[], showCheckbox = true) => (
-    <ul className="space-y-2">
-      {tasks.map((task) => (
-        <li
-          key={task.id}
-          className={cn(
-            "flex flex-col p-3 rounded-lg transition-all duration-200",
-            task.completed
-              ? "bg-gray-100 dark:bg-gray-800"
-              : "bg-white dark:bg-gray-900 shadow-sm hover:shadow dark:shadow-gray-800",
-            expandedItems.has(task.id) && "shadow-md",
-          )}
-        >
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-start space-x-3">
-              {showCheckbox && (
-                <div className="pt-0.5">
-                  <Checkbox
-                    id={`task-${task.id}`}
-                    checked={task.completed}
-                    onCheckedChange={() => toggleTaskCompletion(task.id)}
-                  />
-                </div>
-              )}
-              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(task.id)}>
-                {editingTask === task.id ? (
-                  <Input
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && saveEdit(task.id)}
-                    onBlur={() => saveEdit(task.id)}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <p
-                    className={cn(
-                      "transition-all duration-200",
-                      !expandedItems.has(task.id) && "line-clamp-1",
-                      task.completed && "line-through text-gray-500 dark:text-gray-400",
-                    )}
-                  >
-                    {task.text}
-                  </p>
-                )}
-              </div>
-            </div>
-            {expandedItems.has(task.id) && (
-              <div className="flex justify-end gap-1.5">
-                {task.priority === "Schedule" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCalendarClick(task)
-                    }}
-                    className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <Calendar className="w-3 h-3 text-gray-400" />
-                  </Button>
-                )}
-                {task.priority === "Delegate" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleShare(task)
-                    }}
-                    className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <Share2 className="w-3 h-3 text-gray-400" />
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    archiveTask(task.id)
-                  }}
-                  className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <Archive className="w-3 h-3 text-gray-400" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    startEdit(task)
-                  }}
-                  className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <Pencil className="w-3 h-3 text-gray-400" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteTask(task.id)
-                  }}
-                  className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3 text-gray-400" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event
+    setActiveId(Number(active.id))
+  }, [])
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+
+    const activeTask = tasks.find(t => t.id === Number(active.id))
+    if (!activeTask) return
+
+    const overId = String(over.id)
+    if (!overId) return
+
+    const validPriorities = ["Do Now", "Schedule", "Delegate", "Avoid"] as const
+    const newPriority = validPriorities.find(p => p === overId)
+    
+    if (newPriority && activeTask.priority !== newPriority) {
+      setTasks(prev => 
+        prev.map(task => 
+          task.id === activeTask.id 
+            ? { ...task, priority: newPriority }
+            : task
+        )
+      )
+    }
+  }, [tasks])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    
+    if (!over) {
+      setActiveId(null)
+      return
+    }
+
+    if (active.id !== over.id) {
+      setTasks(prev => {
+        const oldIndex = prev.findIndex(t => t.id === Number(active.id))
+        const newIndex = prev.findIndex(t => t.id === Number(over.id))
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
+    
+    setActiveId(null)
+  }, [])
+
+  const renderPrioritizedSection = (priority: Task["priority"]) => {
+    if (!priority || !LIST_CONFIGS[priority]) return null
+
+    const config = LIST_CONFIGS[priority]
+    const sectionTasks = tasks.filter(
+      task => task.priority === priority && !task.completed && !task.archived
+    )
+
+    return (
+      <DroppableSection
+        id={priority}
+        title={config.title}
+        icon={config.icon}
+        color={config.color}
+        tasks={sectionTasks}
+        isExpanded={expandedSections[priority]}
+        onToggleExpand={(isOpen) => toggleSection(priority, isOpen)}
+        taskCount={getTaskCount(priority)}
+        isLoading={isLoading}
+        onTaskAction={{
+          onToggleExpand: toggleExpand,
+          onToggleComplete: toggleTaskCompletion,
+          onArchive: archiveTask,
+          onDelete: deleteTask,
+          onShare: priority === "Delegate" ? handleShare : undefined,
+          onCalendar: priority === "Schedule" ? handleCalendarClick : undefined,
+          onEdit: startEdit,
+        }}
+        editingState={{
+          editingTask,
+          editValue,
+          onEditChange: setEditValue,
+          onEditSave: saveEdit,
+        }}
+        expandedItems={expandedItems}
+      />
+    )
+  }
 
   const renderEmptyState = (listName: string) => (
     <div className="text-center py-8 px-4">
@@ -472,209 +470,31 @@ export default function Home() {
         </div>
 
         <div className="2xl:w-3/4">
-          <div className="grid gap-4 lg:gap-8 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4">
-            {/* Important Tasks (left column in lg, first half in 2xl) */}
-            <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
-              {/* Do Now section */}
-              <div className="2xl:flex-1">
-                <Collapsible
-                  open={expandedSections["Do Now"]}
-                  onOpenChange={(isOpen) => toggleSection("Do Now", isOpen)}
-                  className={cn(
-                    "bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-fit transition-all duration-200",
-                    LIST_CONFIGS["Do Now"].color,
-                  )}
-                >
-                  <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center space-x-2 text-gray-900 dark:text-gray-100">
-                      {LIST_CONFIGS["Do Now"].icon}
-                      <h2 className="text-xl font-semibold">
-                        {LIST_CONFIGS["Do Now"].title}
-                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                          ({isLoading ? 0 : getTaskCount("Do Now")})
-                        </span>
-                      </h2>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleSection("Do Now", !expandedSections["Do Now"])}
-                      >
-                        {expandedSections["Do Now"] ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent
-                    className={cn(
-                      "transition-all duration-200 ease-in-out",
-                      expandedSections["Do Now"] ? "pt-4 max-h-[500px]" : "max-h-0",
-                    )}
-                  >
-                    <div className="px-4 md:px-6 pb-4 overflow-y-auto">
-                      {tasks.filter((task) => task.priority === "Do Now" && !task.completed && !task.archived).length > 0
-                        ? renderTaskList(tasks.filter((task) => task.priority === "Do Now" && !task.completed && !task.archived))
-                        : renderEmptyState("Do Now")}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid gap-4 lg:gap-8 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4">
+              <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
+                <div className="2xl:flex-1">
+                  {renderPrioritizedSection("Do Now")}
+                </div>
+                <div className="2xl:flex-1">
+                  {renderPrioritizedSection("Schedule")}
+                </div>
               </div>
-
-              {/* Schedule section */}
-              <div className="2xl:flex-1">
-                <Collapsible
-                  open={expandedSections["Schedule"]}
-                  onOpenChange={(isOpen) => toggleSection("Schedule", isOpen)}
-                  className={cn(
-                    "bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-fit transition-all duration-200",
-                    LIST_CONFIGS["Schedule"].color,
-                  )}
-                >
-                  <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center space-x-2 text-gray-900 dark:text-gray-100">
-                      {LIST_CONFIGS["Schedule"].icon}
-                      <h2 className="text-xl font-semibold">
-                        {LIST_CONFIGS["Schedule"].title}
-                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                          ({isLoading ? 0 : getTaskCount("Schedule")})
-                        </span>
-                      </h2>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleSection("Schedule", !expandedSections["Schedule"])}
-                      >
-                        {expandedSections["Schedule"] ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent
-                    className={cn(
-                      "transition-all duration-200 ease-in-out",
-                      expandedSections["Schedule"] ? "pt-4 max-h-[500px]" : "max-h-0",
-                    )}
-                  >
-                    <div className="px-4 md:px-6 pb-4 overflow-y-auto">
-                      {tasks.filter((task) => task.priority === "Schedule" && !task.completed && !task.archived).length > 0
-                        ? renderTaskList(tasks.filter((task) => task.priority === "Schedule" && !task.completed && !task.archived))
-                        : renderEmptyState("Schedule")}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+              <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
+                <div className="2xl:flex-1">
+                  {renderPrioritizedSection("Delegate")}
+                </div>
+                <div className="2xl:flex-1">
+                  {renderPrioritizedSection("Avoid")}
+                </div>
               </div>
             </div>
-
-            {/* Not Important Tasks (right column in lg, second half in 2xl) */}
-            <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
-              {/* Delegate section */}
-              <div className="2xl:flex-1">
-                <Collapsible
-                  open={expandedSections["Delegate"]}
-                  onOpenChange={(isOpen) => toggleSection("Delegate", isOpen)}
-                  className={cn(
-                    "bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-fit transition-all duration-200",
-                    LIST_CONFIGS["Delegate"].color,
-                  )}
-                >
-                  <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center space-x-2 text-gray-900 dark:text-gray-100">
-                      {LIST_CONFIGS["Delegate"].icon}
-                      <h2 className="text-xl font-semibold">
-                        {LIST_CONFIGS["Delegate"].title}
-                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                          ({isLoading ? 0 : getTaskCount("Delegate")})
-                        </span>
-                      </h2>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleSection("Delegate", !expandedSections["Delegate"])}
-                      >
-                        {expandedSections["Delegate"] ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent
-                    className={cn(
-                      "transition-all duration-200 ease-in-out",
-                      expandedSections["Delegate"] ? "pt-4 max-h-[500px]" : "max-h-0",
-                    )}
-                  >
-                    <div className="px-4 md:px-6 pb-4 overflow-y-auto">
-                      {tasks.filter((task) => task.priority === "Delegate" && !task.completed && !task.archived).length > 0
-                        ? renderTaskList(tasks.filter((task) => task.priority === "Delegate" && !task.completed && !task.archived))
-                        : renderEmptyState("Delegate")}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-
-              {/* Avoid/Nope section */}
-              <div className="2xl:flex-1">
-                <Collapsible
-                  open={expandedSections["Avoid"]}
-                  onOpenChange={(isOpen) => toggleSection("Avoid", isOpen)}
-                  className={cn(
-                    "bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-fit transition-all duration-200",
-                    LIST_CONFIGS["Avoid"].color,
-                  )}
-                >
-                  <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center space-x-2 text-gray-900 dark:text-gray-100">
-                      {LIST_CONFIGS["Avoid"].icon}
-                      <h2 className="text-xl font-semibold">
-                        {LIST_CONFIGS["Avoid"].title}
-                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                          ({isLoading ? 0 : getTaskCount("Avoid")})
-                        </span>
-                      </h2>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleSection("Avoid", !expandedSections["Avoid"])}
-                      >
-                        {expandedSections["Avoid"] ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent
-                    className={cn(
-                      "transition-all duration-200 ease-in-out",
-                      expandedSections["Avoid"] ? "pt-4 max-h-[500px]" : "max-h-0",
-                    )}
-                  >
-                    <div className="px-4 md:px-6 pb-4 overflow-y-auto">
-                      {tasks.filter((task) => task.priority === "Avoid" && !task.completed && !task.archived).length > 0
-                        ? renderTaskList(tasks.filter((task) => task.priority === "Avoid" && !task.completed && !task.archived))
-                        : renderEmptyState("Avoid")}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </div>
-          </div>
+          </DndContext>
         </div>
       </main>
 

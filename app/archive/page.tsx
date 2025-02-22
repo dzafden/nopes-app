@@ -48,17 +48,11 @@ export default function ArchivePage() {
   }, [])
 
   const completedTasks = tasks.filter((task) => task.completed && !task.archived)
-  const avoidedTasks = tasks.filter((task) => task.priority === "Avoid" && !task.completed && !task.archived)
-  const archivedTasks = tasks.filter((task) => task.archived)
-
-  const restoreTask = (taskId: number) => {
-    const updatedTasks = tasks.map((task) =>
-      task.id === taskId ? { ...task, archived: false } : task
-    )
-    setTasks(updatedTasks)
-    storage.saveTasks(updatedTasks)
-    storage.emitChange()
-  }
+  const avoidedTasks = tasks.filter((task) => 
+    (task.priority === "Avoid" && task.archived) || // Tasks archived from Avoid section
+    (task.priority === "Avoid" && !task.completed && !task.archived) // Tasks currently in Avoid section
+  )
+  const archivedTasks = tasks.filter((task) => task.archived && task.priority !== "Avoid") // Other archived tasks
 
   const deleteTask = (taskId: number) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId)
@@ -76,9 +70,6 @@ export default function ArchivePage() {
         >
           <span className="truncate text-sm">{task.text}</span>
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={() => restoreTask(task.id)} className="h-8 px-2">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
             <Button
               variant="ghost"
               size="sm"
