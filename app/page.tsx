@@ -13,6 +13,8 @@ import {
   XCircle,
   Archive,
   Pencil,
+  Calendar,
+  Share2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +26,11 @@ import { SwipeableTask } from "./components/SwipeableTask"
 import { Tutorial } from "./components/Tutorial"
 import { MainNav } from "./components/MainNav"
 import { storage } from "@/lib/storage"
+import { openCalendar } from "@/lib/calendar"
+import { ConfirmDialog } from "./components/ConfirmDialog"
+import { shareTask } from "@/lib/share"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 
 type Task = {
   id: number
@@ -89,6 +96,8 @@ export default function Home() {
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set())
   const [editingTask, setEditingTask] = useState<number | null>(null)
   const [editValue, setEditValue] = useState("")
+  const [calendarTask, setCalendarTask] = useState<Task | null>(null)
+  const { toast } = useToast()
 
   // Load initial tasks
   useEffect(() => {
@@ -217,6 +226,36 @@ export default function Home() {
     setTasks(updatedTasks)
   }
 
+  const handleCalendarClick = async (task: Task) => {
+    setCalendarTask(task)
+  }
+
+  const handleCalendarConfirm = async () => {
+    if (calendarTask) {
+      await openCalendar(calendarTask.text)
+      setCalendarTask(null)
+    }
+  }
+
+  const handleShare = async (task: Task) => {
+    try {
+      const result = await shareTask(task.text)
+      if (result) {
+        toast({
+          title: "Copied to clipboard",
+          description: "The task has been copied to your clipboard",
+        })
+      }
+    } catch (error) {
+      console.error('Error sharing task:', error)
+      toast({
+        title: "Error sharing task",
+        description: "There was an error sharing the task",
+        variant: "destructive",
+      })
+    }
+  }
+
   const renderTaskList = (tasks: Task[], showCheckbox = true) => (
     <ul className="space-y-2">
       {tasks.map((task) => (
@@ -266,6 +305,32 @@ export default function Home() {
             </div>
             {expandedItems.has(task.id) && (
               <div className="flex justify-end gap-1.5">
+                {task.priority === "Schedule" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCalendarClick(task)
+                    }}
+                    className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                  </Button>
+                )}
+                {task.priority === "Delegate" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleShare(task)
+                    }}
+                    className="p-1 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <Share2 className="w-3 h-3 text-gray-400" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -613,7 +678,17 @@ export default function Home() {
         </div>
       </main>
 
+      <Toaster />
       <Tutorial isOpen={showTutorial} onClose={closeTutorial} />
+
+      <ConfirmDialog
+        isOpen={calendarTask !== null}
+        onClose={() => setCalendarTask(null)}
+        onConfirm={handleCalendarConfirm}
+        title="Schedule Task"
+        description="Do you want to schedule this task in your calendar?"
+        confirmText="Open Calendar"
+      />
     </div>
   )
 }
