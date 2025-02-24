@@ -476,23 +476,11 @@ export default function Home() {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <div className="grid gap-4 lg:gap-8 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4">
-              <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
-                <div className="2xl:flex-1">
-                  {renderPrioritizedSection("Do Now")}
-                </div>
-                <div className="2xl:flex-1">
-                  {renderPrioritizedSection("Schedule")}
-                </div>
-              </div>
-              <div className="space-y-4 lg:col-span-1 2xl:col-span-2 2xl:flex 2xl:gap-8">
-                <div className="2xl:flex-1">
-                  {renderPrioritizedSection("Delegate")}
-                </div>
-                <div className="2xl:flex-1">
-                  {renderPrioritizedSection("Avoid")}
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {renderPrioritizedSection("Do Now")}
+              {renderPrioritizedSection("Schedule")}
+              {renderPrioritizedSection("Delegate")}
+              {renderPrioritizedSection("Avoid")}
             </div>
           </DndContext>
         </div>
