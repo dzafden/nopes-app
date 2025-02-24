@@ -79,9 +79,9 @@ export function DraggableTask({
       className={cn(
         "flex flex-col p-3 rounded-lg transition-all duration-200",
         task.completed
-          ? "bg-gray-100 dark:bg-gray-800"
-          : "bg-white dark:bg-gray-900 shadow-sm hover:shadow dark:shadow-gray-800",
-        isExpanded && "shadow-md",
+          ? "bg-gray-100 dark:bg-black/60"
+          : "bg-white dark:bg-black/40 shadow-sm hover:shadow dark:shadow-none dark:border dark:border-gray-950",
+        isExpanded && "shadow-md dark:shadow-none",
       )}
     >
       <div className="flex flex-col space-y-2">

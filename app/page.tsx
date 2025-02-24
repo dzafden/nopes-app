@@ -389,8 +389,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <header className="bg-white dark:bg-gray-900 border-b">
+    <div className="min-h-screen bg-gray-50 dark:bg-black">
+      <header className="bg-white dark:bg-black border-b dark:border-gray-950">
         <div className="container mx-auto px-4 py-3 flex items-center">
           <MainNav />
           <h1 className="flex-1 text-2xl text-center font-['IBM_Plex_Sans'] font-semibold text-primary">Nopes</h1>
@@ -421,7 +421,7 @@ export default function Home() {
 
       <main className="container mx-auto pt-8 pb-20 px-2 sm:px-4 2xl:flex 2xl:gap-8">
         <div className="2xl:w-1/4 mb-8 2xl:mb-0">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+          <div className="bg-white dark:bg-black/40 p-4 rounded-lg shadow-md dark:shadow-none border dark:border-gray-950">
             <div className="flex">
               <Input
                 type="text"
@@ -429,9 +429,9 @@ export default function Home() {
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && addTask()}
-                className="flex-grow mr-2"
+                className="flex-grow mr-2 dark:bg-black/60"
               />
-              <Button onClick={addTask}>
+              <Button onClick={addTask} variant="ghost" className="dark:hover:bg-gray-900">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>

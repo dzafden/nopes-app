@@ -6,8 +6,35 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronUp, ChevronDown } from "lucide-react"
+import { ChevronUp, ChevronDown, ListTodo, Clock, UserMinus, XCircle } from "lucide-react"
 import { DraggableTask } from "./DraggableTask"
+
+const LIST_CONFIGS = {
+  "Do Now": {
+    title: "Do Now",
+    icon: <ListTodo className="h-5 w-5" />,
+    color: "bg-green-100 dark:bg-[linear-gradient(45deg,#022c22,#075985)] hover:bg-green-200 dark:hover:opacity-90",
+    description: "Important and urgent tasks that need immediate attention",
+  },
+  Schedule: {
+    title: "Schedule",
+    icon: <Clock className="h-5 w-5" />,
+    color: "bg-yellow-100 dark:bg-[linear-gradient(45deg,#422006,#854d0f)] hover:bg-yellow-200 dark:hover:opacity-90",
+    description: "Important but not urgent tasks to plan for later",
+  },
+  Delegate: {
+    title: "Delegate",
+    icon: <UserMinus className="h-5 w-5" />,
+    color: "bg-blue-100 dark:bg-[linear-gradient(45deg,#172554,#1e3a8a)] hover:bg-blue-200 dark:hover:opacity-90",
+    description: "Urgent but not important tasks to assign to others",
+  },
+  Avoid: {
+    title: "Nope",
+    icon: <XCircle className="h-5 w-5" />,
+    color: "bg-gray-100 dark:bg-[linear-gradient(45deg,#18181b,#27272a)] hover:bg-gray-200 dark:hover:opacity-90",
+    description: "Neither important nor urgent tasks to minimize",
+  },
+}
 
 interface DroppableSectionProps {
   id: string
@@ -75,7 +102,8 @@ export const DroppableSection = memo(function DroppableSection({
       open={isExpanded}
       onOpenChange={onToggleExpand}
       className={cn(
-        "bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-fit transition-all duration-200",
+        "bg-white dark:bg-black/40 rounded-lg overflow-hidden h-fit transition-all duration-200",
+        "dark:border-0 dark:shadow-lg dark:shadow-black/20",
         color,
         isOver && "ring-2 ring-primary ring-opacity-50"
       )}
@@ -91,7 +119,7 @@ export const DroppableSection = memo(function DroppableSection({
           {icon}
           <h2 className="text-xl font-semibold">
             {title}
-            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-300">
               ({isLoading ? 0 : taskCount})
             </span>
           </h2>
@@ -141,11 +169,11 @@ export const DroppableSection = memo(function DroppableSection({
           </SortableContext>
           {tasks.length === 0 && (
             <div className="text-center py-8 px-4">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-black/60 mb-4">
                 {icon}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Drop tasks here
+                {LIST_CONFIGS[id as keyof typeof LIST_CONFIGS]?.description || "Drop tasks here"}
               </p>
             </div>
           )}
